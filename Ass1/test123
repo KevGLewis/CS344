@@ -1,0 +1,20 @@
+#!/bin/bash
+#Matrix
+
+#Verify if matrix is from stdin or argument
+TMP1="tempfile$$"
+Matrix="NULL"
+if [ "$#" = "0" ]; then
+	while read num 
+	do
+		echo "$num" >> $TMP1
+	done < /dev/stdin
+	Matrix=$TMP1
+else
+	Matrix=$1
+fi
+cat $Matrix
+
+if [ -a $TMP1 ]; then
+	exec rm -f "$TMP1"
+fi
