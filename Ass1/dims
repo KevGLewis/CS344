@@ -3,7 +3,12 @@
 
 #Verify if matrix is from stdin or argument
 TMP1="tempfile$$"
-Matrix="NULL"
+
+function saveMatrixOne(){
+# NAME: saveMatrix - Save a matrix to a temporary file
+# If there are no arguments, then it is assumed data is passed by stdin
+# Save stdin to a temporary file for easier manipulation.
+# This particular step can be refactored for better optimization later
 if [ "$#" = "0" ]; then
 	while read num 
 	do
@@ -11,9 +16,22 @@ if [ "$#" = "0" ]; then
 	done < /dev/stdin
 	Matrix=$TMP1
 else
+	echo "This didn't work"
 	Matrix=$1
 fi
-cat $Matrix
+}
+echo "Matrix is $Matrix"
+saveMatrixOne $1
+
+#First, find the number of columns in the file.
+nCols=$(head -n 1 $Matrix | wc -w)
+
+#Second, find the number of rows
+nRows=$( cat $Matrix | wc -l)
+
+echo "$nCols $nRows"
+echo "Number of Cols is: $nCols"
+echo "Number of Rows is: $nRows"
 
 if [ -a $TMP1 ]; then
 	exec rm -f "$TMP1"

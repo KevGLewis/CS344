@@ -1,0 +1,83 @@
+#!/bin/bash
+#Matrix
+
+function tempCreate(){
+# Name: tempcreate
+# Purpose: Creates the temporary file names
+TMP="temp$$"
+TMPCol="tempcol$$"
+TMPRow="temprow$$"
+}
+
+function tempclean(){
+# Name: tempclean
+# Purpose: Checks for the temporary file(s) and deletes if they exist.
+
+if [ -a $TMP ]; then
+	exec rm -f "$TMP"
+fi
+
+if [ -a $TMPCol ]; then
+	exec rm -f "$TMPCol"
+fi
+
+if [ -a $TMPRow ]; then
+	exec rm -f "$TMPRow"
+fi
+}
+
+function stdinSave(){
+# NAME: stdinSave - Save a matrix to a temporary file
+# If there are no arguments, then it is assumed data is passed by stdin
+# Save stdin to a temporary file for easier manipulation.
+# This particular step can be refactored for better optimization later
+if [ "$#" = "0" ]; then
+	while read num 
+	do
+		echo "$num" >> $TMP
+	done < /dev/stdin
+	MatrixOne=$TMP
+else
+	MatrixOne=$1
+fi
+}
+
+
+function dims(){
+tempCreate
+stdinSave $1
+
+#First, find the number of columns in the file.
+nCols=$(head -n 1 $MatrixOne | wc -w)
+
+#Second, find the number of rows
+nRows=$( cat $MatrixOne | wc -l)
+
+echo "$nCols $nRows"
+tempclean
+}
+
+function mean(){
+tempCreate
+stdinSave $1
+
+#First, find the number of columns in the file.
+nCols=$(head -n 1 $MatrixOne | wc -w)
+sum=0
+size=0
+
+while IFS=$'\t' read -r -a myArray
+do
+	for i in "${myArray[@]}"
+	do
+		sum=$(expr $sum + $i)
+		((size++))
+	done
+done < $MatrixOne
+
+average=$(expr \(\($sum\>0\)\*2 - 1\)\/$size )
+
+echo -e "Size = $size\nSum = $sum\nAverage = $average"
+}
+
+$1 "${@:2}"
