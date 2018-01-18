@@ -67,18 +67,20 @@ else
 	outOne="$((($inOne - ($inTwo / 2)) / $inTwo))"
 fi
 
-echo "Division = $outOne"
+echo $outOne
 
 }
 
 
 function matrixAvg(){
-# Matrix Average: Determines the average of whatever matrix files
-# is store in the MatrixOne variable
-# The average is stored in the OutOne output variable
+# Matrix Average: Determines the average of whatever matrix file
+# name is input in argument 1
+# The average is sent to stdOut
+
+input=$1
 
 #First, find the number of columns in the file.
-nCol=$(head -n 1 $MatrixOne | wc -w)
+nCol=$(head -n 1 $input | wc -w)
 sum=0
 size=0
 
@@ -89,12 +91,13 @@ do
 		sum=$(expr $sum + $i)
 		((size++))
 	done
-done < $MatrixOne
+done < $input
 
-
+outOne=$(divide $sum $size)
+echo $outOne
 }
 
-function meanTest(){
+function mean(){
 tempCreate
 stdinSave $1
 
@@ -108,10 +111,17 @@ size=0
 
 for ((i=1; i<=$nCols; i++))
 	do
-		cut -d$'\t' -f1 $MatrixOne >> $TMPCol
-		
+		cut -d$'\t' "-f$i" $MatrixOne >> $TMPCol
+		tempSave=$(matrixAvg $TMPCol)
+		printf	"%s" "$tempSave"
+		if [ $i -ne $nCols ]; then
+			printf "\t"
+		else
+			echo
+		fi
 	done
 
+tempclean		
 }
 
 
@@ -122,30 +132,5 @@ stdinSave $1
 echo "$nCols $nRows"
 tempclean
 }
-
-function mean(){
-tempCreate
-stdinSave $1
-
-#First, find the number of columns in the file.
-nCols=$(head -n 1 $MatrixOne | wc -w)
-sum=0
-size=0
-
-while IFS=$'\t' read -r -a myArray
-do
-	for i in "${myArray[@]}"
-	do
-		sum=$(expr $sum + $i)
-		((size++))
-	done
-done < $MatrixOne
-
-average=$(expr \(\($sum\>0\)\*2 - 1\)\/$size )
-
-echo -e "Size = $size\nSum = $sum\nAverage = $average"
-}
-
-
 
 $1 "${@:2}"
