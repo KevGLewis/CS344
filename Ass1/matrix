@@ -7,6 +7,12 @@ function tempCreate(){
 TMP="temp$$"
 TMPCol="tempcol$$"
 TMPRow="temprow$$"
+
+# These variables store the inputs and outputs for function
+inOne=0
+inTwo=0
+outOne=0
+outTwo=0
 }
 
 function tempclean(){
@@ -34,24 +40,84 @@ function stdinSave(){
 if [ "$#" = "0" ]; then
 	while read num 
 	do
-		echo "$num" >> $TMP
+		echo "$num" > $TMP
 	done < /dev/stdin
 	MatrixOne=$TMP
 else
 	MatrixOne=$1
 fi
+
+# Determine the Number of Columns and Number of rows
+# In the Matrix
+nCols=$(head -n 1 $MatrixOne | wc -w)
+nRows=$( cat $MatrixOne | wc -l)
+}
+
+function divide(){
+# NAME: divide - Property divides two numbers
+# INPUT: Two numbers in inOne and inTwo
+# OUTPUT: Division result (integer) in outOne
+
+inOne=$1
+inTwo=$2
+
+if [ $inOne -gt "0" ]; then
+	outOne="$((($inOne + ($inTwo / 2)) / $inTwo))"
+else
+	outOne="$((($inOne - ($inTwo / 2)) / $inTwo))"
+fi
+
+echo "Division = $outOne"
+
+}
+
+
+function matrixAvg(){
+# Matrix Average: Determines the average of whatever matrix files
+# is store in the MatrixOne variable
+# The average is stored in the OutOne output variable
+
+#First, find the number of columns in the file.
+nCol=$(head -n 1 $MatrixOne | wc -w)
+sum=0
+size=0
+
+while IFS=$'\t' read -r -a myArray
+do
+	for i in "${myArray[@]}"
+	do
+		sum=$(expr $sum + $i)
+		((size++))
+	done
+done < $MatrixOne
+
+
+}
+
+function meanTest(){
+tempCreate
+stdinSave $1
+
+#First, find the number of columns in the file.
+sum=0
+size=0
+
+# Save each column to a temporary file
+# Then Sum all numbers in temporary file
+# and Output the Sum
+
+for ((i=1; i<=$nCols; i++))
+	do
+		cut -d$'\t' -f1 $MatrixOne >> $TMPCol
+		
+	done
+
 }
 
 
 function dims(){
 tempCreate
 stdinSave $1
-
-#First, find the number of columns in the file.
-nCols=$(head -n 1 $MatrixOne | wc -w)
-
-#Second, find the number of rows
-nRows=$( cat $MatrixOne | wc -l)
 
 echo "$nCols $nRows"
 tempclean
@@ -79,5 +145,7 @@ average=$(expr \(\($sum\>0\)\*2 - 1\)\/$size )
 
 echo -e "Size = $size\nSum = $sum\nAverage = $average"
 }
+
+
 
 $1 "${@:2}"
