@@ -5,6 +5,7 @@ function tempCreate(){
 # Name: tempcreate
 # Purpose: Creates the temporary file names
 TMP="temp$$"
+TMPTwo="tempTwo$$"
 TMPCol="tempcol$$"
 TMPRow="temprow$$"
 
@@ -21,6 +22,10 @@ function tempclean(){
 
 if [ -a $TMP ]; then
 	exec rm -f "$TMP"
+fi
+
+if [ -a $TMPtwo ]; then
+	exec rm -f "$TMPtwo"
 fi
 
 if [ -a $TMPCol ]; then
@@ -80,7 +85,6 @@ function matrixAvg(){
 input=$1
 
 #First, find the number of columns in the file.
-nCol=$(head -n 1 $input | wc -w)
 sum=0
 size=0
 
@@ -132,5 +136,46 @@ stdinSave $1
 echo "$nCols $nRows"
 tempclean
 }
+
+function transposeHelp(){
+# NAME: transpose help - take a column matrix, rotates it, and adds it to an existing
+# matrix file
+# INPUT: Argument 1 - Matrix file to be appended to another file
+# Argument 2 - Output matrix file
+
+input=$1
+output=$2
+
+# Read the column matrix, and for each item append it to 
+# The file, once all of the items have been added, ad a new line
+# escape character
+
+counter=0;
+
+while read num
+do
+	if [ $counter -ne 0 ]; then
+		echo -n -e "\t" >> $output
+	fi
+	
+	echo -n -e "$num" >> $output
+	((counter++))
+done < $input
+
+echo -n -e "\n" >> $output
+}
+
+function transpose(){
+tempCreate
+stdinSave $1
+for ((i=1; i<=$nCols; i++))
+	do
+		cut -d$'\t' "-f$i" $MatrixOne > $TMPCol
+		transposeHelp $TMPCol $TMPTwo
+	done
+cat "$TMPTwo"
+tempclean
+}
+
 
 $1 "${@:2}"
