@@ -1,41 +1,26 @@
 #!/bin/bash
 #Matrix
 
+function uponExit(){
+	rm -f *.tmp
+}
+
+trap uponExit INT TERM EXIT
+
 function tempCreate(){
 # Name: tempcreate
 # Purpose: Creates the temporary file names
-TMP="temp$$"
-TMPTwo="tempTwo$$"
-TMPCol="tempcol$$"
-TMPRow="temprow$$"
 
-# These variables store the inputs and outputs for function
-inOne=0
-inTwo=0
-outOne=0
-outTwo=0
+# The following script from https://stackoverflow.com/questions/4632028/how-to-create-a-temporary-directory
+
+TMP="temp$$.tmp"
+TMPTwo="tempTwo$$.tmp"
+TMPThree="tempThree$$.tmp"
+TMPCol="tempcol$$.tmp"
+TMPRow="temprow$$.tmp"
 }
 
-function tempclean(){
-# Name: tempclean
-# Purpose: Checks for the temporary file(s) and deletes if they exist.
-
-if [ -a $TMP ]; then
-	exec rm -f "$TMP"
-fi
-
-if [ -a $TMPtwo ]; then
-	exec rm -f "$TMPtwo"
-fi
-
-if [ -a $TMPCol ]; then
-	exec rm -f "$TMPCol"
-fi
-
-if [ -a $TMPRow ]; then
-	exec rm -f "$TMPRow"
-fi
-}
+tempCreate
 
 function stdinSave(){
 # NAME: stdinSave - Save a matrix to a temporary file
@@ -102,7 +87,6 @@ echo $outOne
 }
 
 function mean(){
-tempCreate
 stdinSave $1
 
 #First, find the number of columns in the file.
@@ -124,17 +108,13 @@ for ((i=1; i<=$nCols; i++))
 			echo
 		fi
 	done
-
-tempclean		
 }
 
 
 function dims(){
-tempCreate
 stdinSave $1
 
 echo "$nCols $nRows"
-tempclean
 }
 
 function transposeHelp(){
@@ -166,7 +146,6 @@ echo -n -e "\n" >> $output
 }
 
 function transpose(){
-tempCreate
 stdinSave $1
 for ((i=1; i<=$nCols; i++))
 	do
@@ -174,8 +153,105 @@ for ((i=1; i<=$nCols; i++))
 		transposeHelp $TMPCol $TMPTwo
 	done
 cat "$TMPTwo"
-tempclean
 }
 
+function addAndAppend(){
+# NAME: Adds two row files together and appends them to a 
+# file specified by the user
+# INPUTS: Arguments 1 and 2 are the two row file names, Arg 3
+# is the temporary file to be appended. Arg 4 is the number
+# of Columns
+
+numOne=0
+numTwo=0
+
+for ((j=1; j<=$4; j++))
+	do
+		numOne=$(cut -d$'\t' "-f$j" $1)
+		numTwo=$(cut -d$'\t' "-f$j" $2)
+		sum=$(($numOne + $numTwo))
+			printf "%s" "$sum" >> $3
+		if [ $j -ne $4 ]; then
+			printf "\t"  >> $3
+		else
+			echo >> $3
+		fi
+	done
+
+
+}
+
+function loadTwoMatrices(){	
+# NAME: Load Two Matrices - Loads two matrices (Matrix File Names)
+# Store in Argument 1 and Argument 2	
+# Load the Matrices and Determine the Sizes
+
+MatrixOne=$1
+MatrixTwo=$2
+
+nColOne=$(head -n 1 $MatrixOne | wc -w)
+nRowOne=$( cat $MatrixOne | wc -l)
+	
+nColTwo=$(head -n 1 $MatrixTwo | wc -w)
+nRowTwo=$( cat $MatrixTwo | wc -l)
+
+}
+
+function add(){
+# NAME: Add - Adds two matrices (contained in separate files)
+# GENERAL DESCRIPTION: Saves each row to a temporary file, adds the two files together
+# and appends results to a third temporary file, then displays the end result.
+
+loadTwoMatrices $1 $2
+
+for ((i=1; i<=$nRowOne; i++))
+	do
+		head "-$i" $MatrixOne | tail -1 > $TMPTwo 
+		head "-$i" $MatrixTwo | tail -1 > $TMPThree
+		addAndAppend $TMPTwo $TMPThree $TMP $nColOne
+	done
+cat $TMP
+}
+
+function multiplyHelper(){
+# NAME: Adds two row files together and appends them to a 
+# file specified by the user
+# INPUTS: Arguments 1 and 2 are the two row file names, Arg 3
+# is the number of columns
+
+sumTemp=0
+
+for ((j=1; j<=$4; j++))
+	do
+		numOne=$(cut -d$'\t' "-f$j" $1)
+		numTwo=$(cut -d$'\t' "-f$j" $2)
+		sumTemp=$(($numOne * $numTwo))
+	done
+
+cat "$sumTemp"
+}
+
+function multiply(){
+# NAME: Multiply - Multiplies two matrices together
+# General Description Break off the column of one matrix, convert it
+# to a row file, and then multiply them together
+
+tempAdd=0
+sum=0
+
+# First Transpose the first matrix
+transpose $1 > $TMPRow
+
+loadTwoMatrices $TMPRow $2
+
+for ((i=1; i<=$nRowOne; i++))
+	do
+		head "-$i" $MatrixOne | tail -1 > $TMPTwo 
+		head "-$i" $MatrixTwo | tail -1 > $TMPThree
+		tempAdd=$(multiplyhelper $TMPTwo $nColOne) 
+		sum=$(($sum + $tempAdd))
+	done
+cat sum
+}
 
 $1 "${@:2}"
