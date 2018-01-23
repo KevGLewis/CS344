@@ -5,10 +5,10 @@
 set -e
 
 function uponExit(){
-	rm -f *.tmp
+	rm -f *$$.tmp
 }
 
-trap uponExit INT TERM EXIT
+trap uponExit EXIT
 
 function tempCreate(){
 # Name: tempcreate
@@ -21,10 +21,10 @@ TMPTwo="tempTwo$$.tmp"
 TMPThree="tempThree$$.tmp"
 TMPCol="tempcol$$.tmp"
 TMPRow="temprow$$.tmp"
+
 }
 
 tempCreate
-
 # Functions to check the number of arguments and if they exist.
 
 function fileExists(){
@@ -37,6 +37,11 @@ do
 		echo "File does not exist" 1>&2
 		return 1
 	fi
+	
+	if [ ! -r "$var" ]; then
+		echo "File is not readable" 1>&2
+		return 1
+	fi
 done
 }
 
@@ -46,7 +51,7 @@ if [ $# -gt 1 ]; then
 	return 1
 fi
 
-#Now check if the file exists
+#Now check if the file exists and is readable
 fileExists "$@"
 
 }
@@ -57,7 +62,7 @@ if [ $# -ne 2 ]; then
 	return 1
 fi
 
-#Now check if the file exists
+#Now check if the file exists and is readable
 fileExists "$@"
 
 }
@@ -70,11 +75,10 @@ function stdinSave(){
 # If there are no arguments, then it is assumed data is passed by stdin
 # Save stdin to a temporary file for easier manipulation.
 # This particular step can be refactored for better optimization later
+
 if [ "$#" = "0" ]; then
-	while read num 
-	do
-		echo "$num" > $TMP
-	done < /dev/stdin
+	cat > $TMP
+	
 	MatrixOne=$TMP
 else
 	MatrixOne=$1
@@ -82,6 +86,7 @@ fi
 
 # Determine the Number of Columns and Number of rows
 # In the Matrix
+
 nCols=$(head -n 1 $MatrixOne | wc -w)
 nRows=$( cat $MatrixOne | wc -l)
 }
@@ -146,7 +151,7 @@ size=0
 
 for ((i=1; i<=$nCols; i++))
 	do
-		cut -d$'\t' "-f$i" $MatrixOne >> $TMPCol
+		cut -d$'\t' "-f$i" $MatrixOne > $TMPCol
 		tempSave=$(matrixAvg $TMPCol)
 		printf	"%s" "$tempSave"
 		if [ $i -ne $nCols ]; then
@@ -158,7 +163,6 @@ for ((i=1; i<=$nCols; i++))
 return 1
 }
 
-
 function dims(){
 
 #First Check the number of arguments and if they exists
@@ -167,7 +171,7 @@ oneArgument "$@"
 # Save the Input to a matrix
 stdinSave $1
 
-echo "$nCols $nRows"
+echo "$nRows $nCols"
 return 0
 }
 
@@ -191,9 +195,9 @@ do
 	if [ $counter -ne 0 ]; then
 		echo -n -e "\t" >> $output
 	fi
-	
 	echo -n -e "$num" >> $output
-	((counter++))
+	counter=$(($counter + 1))
+
 done < $input
 
 echo -n -e "\n" >> $output
@@ -205,11 +209,13 @@ function transpose(){
 oneArgument "$@"
 
 stdinSave $1
+
 for ((i=1; i<=$nCols; i++))
 	do
 		cut -d$'\t' "-f$i" $MatrixOne > $TMPCol
 		transposeHelp $TMPCol $TMPTwo
 	done
+
 cat "$TMPTwo"
 return 0
 }
@@ -263,7 +269,7 @@ function add(){
 
 #First Check the number of arguments and if they exists
 twoArgument "$@"
-
+tempCreate
 loadTwoMatrices $1 $2
 
 for ((i=1; i<=$nRowOne; i++))
@@ -305,10 +311,19 @@ function multiply(){
 #First Check the number of arguments and if they exists
 twoArgument "$@"
 
+tempCreate
+
 # First Transpose the first matrix
 transpose $2 > $TMPRow
 
 loadTwoMatrices $1 $TMPRow
+
+if [ $nRowOne -ne $nRowTwo ]; then
+		echo "Incompatible matrices" 1>&2
+		return 1
+fi
+
+
 
 # Since the matrices have been transposed, we only need to multiply a row by a row
 # So we have a nested for loop, where the first row of the first column is multiplied
