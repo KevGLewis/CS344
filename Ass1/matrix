@@ -190,6 +190,9 @@ output=$2
 
 counter=0;
 
+# takes each number in a column file, and appends it to the 
+# file specified by the user, therefore switching the files 
+# from column to row.
 while read num
 do
 	if [ $counter -ne 0 ]; then
@@ -208,8 +211,12 @@ function transpose(){
 #First Check the number of arguments and if they exists
 oneArgument "$@"
 
+# Save the input to a temporary file
 stdinSave $1
 
+# Saves each column to a temporary column file, and feeds it to 
+# a helper function. The function will rotate a column file and append it
+# to a specified file
 for ((i=1; i<=$nCols; i++))
 	do
 		cut -d$'\t' "-f$i" $MatrixOne > $TMPCol
@@ -229,6 +236,10 @@ function addAndAppend(){
 
 numOne=0
 numTwo=0
+
+# Cuts numbers from two row files, then addes the numbers together
+# while maintaining a rolling sum. Finally append this number 
+# to a file specified by the user in the input
 
 for ((j=1; j<=$4; j++))
 	do
@@ -316,9 +327,11 @@ tempCreate
 # First Transpose the first matrix
 transpose $2 > $TMPRow
 
+# Now load the matrices
 loadTwoMatrices $1 $TMPRow
 
-if [ $nRowOne -ne $nRowTwo ]; then
+# Check for compatability
+if [ $nColOne -ne $nColTwo ]; then
 		echo "Incompatible matrices" 1>&2
 		return 1
 fi
@@ -336,6 +349,8 @@ for ((i=1; i<=$nRowOne; i++))
 		
 		for ((j=1; j<=$nRowTwo; j++))
 		do
+			# Export each row into a temporary file
+			# Then multiply the two rows together
 			head "-$j" $MatrixTwo | tail -1 > $TMPThree
 			tempAdd=$(multiplyHelper $TMPTwo $TMPThree $nColOne) 
 			printf "%s" "$tempAdd" >> $TMP
