@@ -105,16 +105,18 @@ void InitializeRooms(struct Room *MapRooms, int size){
 // Returns true if all rooms have 3 to 6 outbound connections, false otherwise
 bool IsGraphFull(struct Room *x)
 {
-  bool isFull = true;
+  int isFull = 0;
   int i;
     for (i = 0; i < NUMROOMS; i++){
-    if(x[i].numOutboundConnections > 3 &&
-    x[i].numOutboundConnections < 6 ){
-      isFull = false;
+    if(x[i].numOutboundConnections >= 3 &&
+    x[i].numOutboundConnections <= 6 ){
+      isFull++;
     }
   }
-
-  return isFull;
+    if(isFull == NUMROOMS){
+        return true;
+    }
+    return false;
 }
 
 // Returns true if a connection can be added from Room x (< 6 outbound connections), false otherwise
@@ -170,7 +172,7 @@ void AddRandomConnection(struct Room *roomsIn)
 {
   struct Room *A;  // Maybe a struct, maybe global arrays of ints
   struct Room *B;
-
+    /// THE PROBLEM IS SOMEWHERE AROUND HERE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   while(true)
   {
       A = GetRandomRoom(roomsIn);
@@ -193,12 +195,12 @@ void AddRandomConnection(struct Room *roomsIn)
   ConnectRoom(B, A);  //  because this A and B will be destroyed when this function terminates
 }
 
-void PrintRoomsToFile(struct Room *roomsIn){
+void PrintRoomsToFile(struct Room *roomsIn, char* dirName){
     int i;
     char fileName[STR_SIZE];
     char *pre = "room";
     
-    snprintf(fileName, sizeof(fileName), "%s%d%s", pre, roomsIn->id, ".txt");
+    snprintf(fileName, sizeof(fileName), "%s//%s%d%s",dirName, pre, roomsIn->id, ".txt");
     
     FILE *fp;
     fp = fopen(fileName, "w");
@@ -208,7 +210,7 @@ void PrintRoomsToFile(struct Room *roomsIn){
     
     // Now Print the Connections
     for(i = 1; i <= roomsIn->numOutboundConnections; i++){
-        fprintf(fp, "CONNECTION %d: %s", i, *(roomsIn->outboundConnections[i-1]->name));
+        fprintf(fp, "CONNECTION %d: %s\n", i, *(roomsIn->outboundConnections[i-1]->name));
     }
     
     // Finally print the room type.
@@ -231,7 +233,7 @@ void SaveRoomsToFile(struct Room *roomsIn, int size){
 
     //Now print the rooms to file
     for(i = 0; i < size; i++){
-        PrintRoomsToFile(&roomsIn[i]);
+        PrintRoomsToFile(&roomsIn[i], dirName);
     }
     
 }
