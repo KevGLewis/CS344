@@ -79,20 +79,20 @@ void InitializeRooms(struct Room *MapRooms, int size){
   }
     
     r = rand() % size;
-    MapRooms[r].name = &ROOMTYPE[0]; // set the Start Room
+    MapRooms[r].type = &ROOMTYPE[0]; // set the Start Room
     
     i = rand() % size; // Determine the index for the end room
     while(i == r){
         i = rand() % size; // Ensure the index is Unique
     }
-    MapRooms[i].name = &ROOMTYPE[2]; // Set the EndRoom
+    MapRooms[i].type = &ROOMTYPE[2]; // Set the EndRoom
 
     // Initialize each room
   for(i = 0; i < size; i++){
     MapRooms[i].id = i;
     MapRooms[i].numOutboundConnections = 0;
     MapRooms[i].name = &ROOMNAME[nameOrder[i]];
-      if(MapRooms[i].type != &ROOMTYPE[0] || MapRooms[i].type != &ROOMTYPE[2]){
+      if(MapRooms[i].type != &ROOMTYPE[0] && MapRooms[i].type != &ROOMTYPE[2]){
           MapRooms[i].type = &ROOMTYPE[1];
       }
   }
