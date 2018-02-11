@@ -254,4 +254,5 @@ int main(int argc, char* argv[])
   }
 
   SaveRoomsToFile(MapRooms, NUMROOMS);
+  return 1;
 }

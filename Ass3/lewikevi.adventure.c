@@ -16,9 +16,8 @@
 #include <assert.h>
 #include <dirent.h>
 
-
-const int NROOMS = 7;
-const int BUFFER = 256;
+# define NROOMS 7
+# define BUFFER 256
 
 struct Room
 {
@@ -180,7 +179,7 @@ void ProcessRoomsInDir(struct RoomContainer *roomCont)
     {
         while ((fileInDir = readdir(dirToProcess)) != NULL) // Check each entry in dir
         {
-            if(fileInDir->d_namlen > 2)
+            if(strlen(fileInDir->d_name) > 2)
             {
                 //Create the file name
                 sprintf(filePath, "%s/%s", newDirectName, fileInDir->d_name);
@@ -354,5 +353,6 @@ int main(int argc, char* argv[])
     playGame(&rCont);
 
     cleanup(&rCont);
+    return 1;
 }
 
