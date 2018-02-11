@@ -300,7 +300,7 @@ int getInteraction(struct RoomContainer *contIn, int index)
             free(lineEntered);
             
             // Record the path we are taking to get to the end.
-            contIn->path[contIn->steps] = i;
+            contIn->path[contIn->steps] = indexOut;
             contIn->steps++;
             return indexOut;
         }
