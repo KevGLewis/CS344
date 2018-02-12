@@ -15,9 +15,15 @@
 #include <sys/stat.h>
 #include <assert.h>
 #include <dirent.h>
+#include <pthread.h>
+#include <time.h>
 
 # define NROOMS 7
 # define BUFFER 256
+
+pthread_t gameT;
+pthread_t timeT;
+pthread_mutex_t lock;
 
 struct Room
 {
@@ -36,6 +42,49 @@ struct RoomContainer
     struct Room roomArray[NROOMS];
 };
 
+// Write the time and date to a file. The filename is passed as an argument
+void WriteToFile(char* dateAndTime, char* fileName)
+{
+    FILE *fp = fopen(fileName, "w");
+
+    fputs(dateAndTime, fp);
+    
+    fclose(fp);
+}
+
+// Reads and prints the firstline in a file
+void ReadFromFile(char *fileName)
+{
+    FILE *fp = fopen(fileName, "r");
+    size_t bufferSize = 0; // Holds how large the allocated buffer is
+    char* lineEntered = NULL; // Points to a buffer allocated by getline() that holds our entered string
+    
+    while(getline(&lineEntered, &bufferSize, fp) != -1) //read in the line.
+    {
+        printf("%s", lineEntered);
+    }
+    fclose(fp);
+    free(lineEntered);
+}
+
+void *printTime(void *voidPtr)
+{
+    pthread_mutex_lock(&lock);
+    
+    // Get the time, write it to a character, write to a file, then read that file.
+    time_t t = time(NULL);
+    struct tm timeInfo = *localtime(&t);
+    char timeOut[BUFFER];
+    strftime(timeOut, sizeof(timeOut), "%I:%M%p, %A, %B %e, %Y", &timeInfo);
+    
+    WriteToFile(timeOut, "currentTime.txt");
+    ReadFromFile("currentTime.txt");
+    
+    pthread_mutex_unlock(&lock);
+    
+    return NULL;
+}
+
 void InitializeRoomContainer(struct RoomContainer *contIn)
 {
     int i;
@@ -50,11 +99,14 @@ void InitializeRoomContainer(struct RoomContainer *contIn)
     }
 }
 
+// iterates onto the next room.
 void ItrNextRoom(struct RoomContainer *roomCont)
 {
     roomCont->count++;
 }
 
+// This will add the room name to the specified room by dynamically
+// allocating space for the name
 void AddNameToRoom(struct RoomContainer *roomCont, char *nameIn)
 {
     roomCont->roomArray[roomCont->count].name = malloc(BUFFER * sizeof(char));
@@ -64,6 +116,8 @@ void AddNameToRoom(struct RoomContainer *roomCont, char *nameIn)
     roomCont->roomArray[roomCont->count].id = roomCont->count;
 }
 
+// SImilar to the name function, this will add the type to the room
+// by dynamically allocating
 void AddTypeToRoom(struct RoomContainer *roomCont, char *type)
 {
     roomCont->roomArray[roomCont->count].type = malloc(BUFFER * sizeof(char));
@@ -277,6 +331,7 @@ int getRoomIndex(struct RoomContainer *contIn, char* nameIn)
     return -1;
 }
 
+// This will process the interaction from th user and handle the threads
 int getInteraction(struct RoomContainer *contIn, int index)
 {
     int i, indexOut;
@@ -289,7 +344,23 @@ int getInteraction(struct RoomContainer *contIn, int index)
 
     lineEntered[strcspn(lineEntered, "\n")] = 0; // Remove the \n at the end of line entered
     
-    // Add in code here to deal with the time.
+    if (strcmp(lineEntered, "time") == 0)
+    {
+        free(lineEntered);
+        // unlock the mutex and create the new thread.
+        // Lock the mutex again once done.
+        pthread_mutex_unlock(&lock);
+        if (pthread_create(&timeT, NULL, &printTime, NULL) != 0)
+        {
+            printf("\n time thread creation failed\n");
+            return 1;
+        }
+        pthread_join(timeT, NULL);
+        pthread_mutex_lock(&lock);
+        
+        printf("\n\n");
+        return index;
+    }
     
     // Iterate over the room names and see if any match
     for(i = 0; i < contIn->roomArray[index].numConnx; i++)
@@ -324,8 +395,10 @@ void printPath(struct RoomContainer *contIn)
     }
 }
 
-void playGame(struct RoomContainer *contIn)
+void *playGame(void *arg)
 {
+    struct RoomContainer *contIn = (struct RoomContainer *)arg;
+    
     int index = FindBegin(contIn); // Find the beginning index
     
     while(AtTheEnd(contIn, index) == 0)
@@ -337,11 +410,17 @@ void playGame(struct RoomContainer *contIn)
     // When finished, Print the path and the steps
     printPath(contIn);
     
+    return NULL;
 }
 
 int main(int argc, char* argv[])
 {
-    srand((int)time(NULL));   // should only be called once
+    // This code is from https://www.thegeekstuff.com/2012/05/c-mutex-examples/?refcom
+    if (pthread_mutex_init(&lock, NULL) != 0)
+    {
+        printf("\n mutex init failed\n");
+        return 1;
+    }
     
     // Declare a roomContainer struct and initialize it
     
@@ -349,8 +428,15 @@ int main(int argc, char* argv[])
     InitializeRoomContainer(&rCont);
     
     ProcessRoomsInDir(&rCont);
+    
+    // Create the thread and start the game
+    if (pthread_create(&gameT, NULL, &playGame, &rCont) != 0)
+    {
+        printf("\n game thread creation failed\n");
+        return 1;
+    }
  
-    playGame(&rCont);
+    pthread_join(gameT, NULL);
 
     cleanup(&rCont);
     return 1;
