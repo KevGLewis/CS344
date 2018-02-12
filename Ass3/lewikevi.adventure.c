@@ -23,7 +23,7 @@
 
 pthread_t gameT;
 pthread_t timeT;
-pthread_mutex_t lock;
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct Room
 {
@@ -240,6 +240,7 @@ void ProcessRoomsInDir(struct RoomContainer *roomCont)
                 fp = fopen(filePath, "r");
 
                 processFile(roomCont, fp);
+                fclose(fp);
             }
         }
     }
