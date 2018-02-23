@@ -26,8 +26,36 @@
 #define STR_SIZE 10000
 #define BUFFER 2048
 #define ARGSIZE 512
+#define MAX_CPID 100
 
-int ProcessLine(char **args, int nArgs);
-void ProcessExit(void);
+// In future iterations, I would probably replace this with a dynamic array
+// But for the purposes of this assignment, I will just use a large array. Hopefully
+// I won't get larger than 100 children. If I get to that amount, I will exit.
+// This should also help prevent my program from going wild.
+struct ChildPIDs
+{
+    int nChild;
+    pid_t cPID[MAX_CPID];
+};
+
+struct Arguments
+{
+    int nArgs;
+    int useArgs;
+    char *args[ARGSIZE];
+    char *inRedirect;
+    char *outRedirect;
+    int inBackground;
+};
+
+void AdditionalProcess(struct Arguments *argsIn);
+int ProcessLine(struct Arguments *argsIn, struct ChildPIDs* structIn);
+int ProcessExit(struct Arguments *argsIn, struct ChildPIDs* structIn);
+void ProcessCD(struct Arguments *argsIn);
+void ProcessStatus(struct Arguments *argsIn);
+pid_t ProcessOther(struct Arguments *argsIn, struct ChildPIDs* structIn);
+void InitializeStruct(struct ChildPIDs* structIn);
+void AddChildPID(struct ChildPIDs *structIn, pid_t cPIDIn);
+int IsInBackground(struct Arguments *argsIn);
 
 #endif /* processArgs_h */

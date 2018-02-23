@@ -11,7 +11,6 @@
 char* GetUserInput()
 {
     int numCharsEntered = -5; // How many chars we entered
-    int currChar = -5; // Tracks where we are when we print out every char
     char* lineEntered = NULL;
     size_t bufferSize = 0; // Holds how large the allocated buffer is
     int nArgs;
@@ -23,7 +22,7 @@ char* GetUserInput()
         printf(": ");
         fflush(stdout); // flush the output
         // Get a line from the user
-        numCharsEntered = getline(&lineEntered, &bufferSize, stdin);
+        numCharsEntered = (int) getline(&lineEntered, &bufferSize, stdin);
         if (numCharsEntered == -1)
             clearerr(stdin);
         else
@@ -33,7 +32,7 @@ char* GetUserInput()
     return lineEntered;
 }
 
-int ParseLine(char **arg, char* lineEntered)
+void ParseLine(struct Arguments *argsIn, char* lineEntered)
 {
     int i = 0; // will keep track of where we are in our argument array
     char buffer [50];
@@ -49,54 +48,97 @@ int ParseLine(char **arg, char* lineEntered)
         if(strcmp(token, "$$") == 0)
         {
             sprintf (buffer, "%d", getpid());
-            arg[i] = malloc(sizeof(buffer));
-            strcpy(arg[i], buffer);
+            argsIn->args[i] = malloc(sizeof(buffer));
+            strcpy(argsIn->args[i], buffer);
         }
         
         else
         {
-            arg[i] = malloc(sizeof(token));
-            strcpy(arg[i], token);
+            argsIn->args[i] = malloc(sizeof(token));
+            strcpy(argsIn->args[i], token);
         }
         i++;
         token = strtok(NULL, " ");
     }
     
-    return i; // this will be equivalent to the number of arguments
+    argsIn->nArgs = i; // this will be equivalent to the number of arguments
 }
 
-void CleanArray(char **args, int nArgs)
+// Initialize the arguments tructure, setting what is required to zero
+void InitializeArgStruct(struct Arguments *argsIn)
 {
-    for(int i = 0; i < nArgs; i++)
+    for(int i = 0; i < ARGSIZE; i++)
     {
-        free(args[i]);
-        args[i] = NULL;
+        argsIn->args[i] = NULL;
+    }
+    
+    argsIn->nArgs = 0;
+    argsIn->useArgs = 0;
+    argsIn->inRedirect = NULL;
+    argsIn->outRedirect = NULL;
+    argsIn->inBackground = 0;
+    
+}
+
+// clean up the arguments array
+void CleanStruct(struct Arguments *argsIn)
+{
+    for(int i = 0; i < argsIn->nArgs; i++)
+    {
+        free(argsIn->args[i]);
+        argsIn->args[i] = NULL;
+    }
+    
+    argsIn->nArgs = 0;
+    argsIn->useArgs = 0;
+    free(argsIn->inRedirect);
+    argsIn->inRedirect = NULL;
+    free(argsIn->outRedirect);
+    argsIn->outRedirect = NULL;
+    argsIn->inBackground = 0;
+}
+
+void ProcessExitMethod(pid_t pidIn, int childExitMethod)
+{
+    // Fill this in with code to process the exit code.
+}
+
+void CheckProcesses(struct ChildPIDs *structIn)
+{
+    int i;
+    int childExitMethod;
+    
+    for(i = 0; i < structIn->nChild; i++)
+    {
+        childExitMethod = -5;
+        if(waitpid(structIn->cPID[i], &childExitMethod, WNOHANG))
+        {
+            ProcessExitMethod(structIn->cPID[i], childExitMethod);
+        }
     }
 }
 
 int main(int argc, char* argv[])
 {
-    char *arg[ARGSIZE];
-    int noExit = 1;
-    
-    for(int i = 0; i < ARGSIZE; i++)
-    {
-        arg[i] = NULL;
-    }
+    struct Arguments ArgsOut;
+    InitializeArgStruct(&ArgsOut);
+    struct ChildPIDs cPIDs; // set up our struct to hold our Child PIDs
+    InitializeStruct(&cPIDs);
     
     char* lineEntered = NULL; // Points to a buffer allocated by getline() that holds our entered string + \n + \0
-    int nArgs;
+    
+    int noExit = 1;
     
     while(noExit)
     {
         lineEntered = GetUserInput(); // Get input from the user
         
-        nArgs = ParseLine(arg, lineEntered); // parse the input into the argument array
+        ParseLine(&ArgsOut, lineEntered); // parse the input into the argument array
         
-        noExit = ProcessLine(arg, nArgs);
+        noExit = ProcessLine(&ArgsOut, &cPIDs);
         
         free(lineEntered);
         lineEntered = NULL;
-        CleanArray(arg, nArgs);
+        CleanStruct(&ArgsOut);
     }
 }
