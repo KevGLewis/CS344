@@ -98,53 +98,7 @@ void CleanStruct(struct Arguments *argsIn)
     argsIn->inBackground = 0;
 }
 
-void ProcessExitMethod(pid_t pidIn, int childExitMethod)
-{
-    // Fill this in with code to process the exit code.
-    printf("\nbackground pid %d is done: ", pidIn);
-    
-    if (WIFEXITED(childExitMethod) != 0)
-    {
-        int exitStatus = WEXITSTATUS(childExitMethod);
-        printf("exit status of %d\n", exitStatus);
-        
-    }
-    else if (WIFSIGNALED(childExitMethod) != 0)
-    {
-        int termSignal = WTERMSIG(childExitMethod);
-        printf("terminated by signal %d\n", termSignal);
-    }
-    else
-    {
-        printf("Hull Breach");
-    }
-
-
-}
-
-void CheckProcesses(struct ChildPIDs *structIn)
-{
-    int i;
-    int childExitMethod;
-    pid_t childPID_actual;
-    
-    for(i = 0; i < structIn->nChild; i++)
-    {
-        childExitMethod = -5;
-        childPID_actual = waitpid(structIn->cPID[i], &childExitMethod, WNOHANG);
-        if(childPID_actual == -1)
-        {
-            printf("\nHull Breach, Panic. Child did not exit correctly\n");
-            exit(1);
-        }
-        else if(childPID_actual != 0)
-        {
-            ProcessExitMethod(structIn->cPID[i], childExitMethod);
-        }
-    }
-}
-
-int main(int argc, char* argv[])
+void runProgram()
 {
     struct Arguments ArgsOut;
     InitializeArgStruct(&ArgsOut);
@@ -157,6 +111,7 @@ int main(int argc, char* argv[])
     
     while(noExit)
     {
+        CheckProcesses(&cPIDs);
         lineEntered = GetUserInput(); // Get input from the user
         
         ParseLine(&ArgsOut, lineEntered); // parse the input into the argument array
@@ -167,4 +122,30 @@ int main(int argc, char* argv[])
         lineEntered = NULL;
         CleanStruct(&ArgsOut);
     }
+}
+
+void catchSIGTSTP_Parent(int signo);
+
+int main(int argc, char* argv[])
+{
+    
+    struct sigaction SIGTSTP_action = {{0}}, ignore_action = {{0}};
+    
+    SIGTSTP_action.sa_handler = catchSIGTSTP_Parent;
+    sigfillset(&SIGTSTP_action.sa_mask);
+    SIGTSTP_action.sa_flags = 0;
+    
+    ignore_action.sa_handler = SIG_IGN;
+    //sigaction(SIGINT, &SIGINT_action, NULL);
+    sigaction(SIGINT, &ignore_action, NULL); // Ignore for the time being
+    sigaction(SIGTSTP, &SIGTSTP_action, NULL); // Ignore for the time being
+    sigaction(SIGHUP, &ignore_action, NULL);
+    sigaction(SIGQUIT, &ignore_action, NULL);
+    
+    runProgram();
+}
+
+void catchSIGTSTP_Parent(int signo)
+{
+    // fill in later
 }

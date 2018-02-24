@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
@@ -50,6 +51,7 @@ struct ChildPIDs
 {
     int nChild;
     pid_t cPID[MAX_CPID];
+    int inBackground;
 };
 
 struct Arguments
@@ -71,5 +73,12 @@ pid_t ProcessOther(struct Arguments *argsIn, struct ChildPIDs* structIn);
 void InitializeStruct(struct ChildPIDs* structIn);
 void AddChildPID(struct ChildPIDs *structIn, pid_t cPIDIn);
 int IsInBackground(struct Arguments *argsIn);
+
+// Child Checking
+void CheckProcesses(struct ChildPIDs *structIn);
+void ProcessExitMethod(pid_t pidIn, int childExitMethod);
+void SetUpChildSigHandle(int isInBackground);
+void catchSIGINT_Child(int signo);
+
 
 #endif /* processArgs_h */
