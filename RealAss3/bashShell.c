@@ -73,7 +73,7 @@ void InitializeArgStruct(struct Arguments *argsIn)
     }
     
     argsIn->nArgs = 0;
-    argsIn->useArgs = 0;
+    argsIn->useArgs = -1;
     argsIn->inRedirect = NULL;
     argsIn->outRedirect = NULL;
     argsIn->inBackground = 0;
@@ -90,7 +90,7 @@ void CleanStruct(struct Arguments *argsIn)
     }
     
     argsIn->nArgs = 0;
-    argsIn->useArgs = 0;
+    argsIn->useArgs = -1;
     free(argsIn->inRedirect);
     argsIn->inRedirect = NULL;
     free(argsIn->outRedirect);
@@ -101,17 +101,43 @@ void CleanStruct(struct Arguments *argsIn)
 void ProcessExitMethod(pid_t pidIn, int childExitMethod)
 {
     // Fill this in with code to process the exit code.
+    printf("\nbackground pid %d is done: ", pidIn);
+    
+    if (WIFEXITED(childExitMethod) != 0)
+    {
+        int exitStatus = WEXITSTATUS(childExitMethod);
+        printf("exit status of %d\n", exitStatus);
+        
+    }
+    else if (WIFSIGNALED(childExitMethod) != 0)
+    {
+        int termSignal = WTERMSIG(childExitMethod);
+        printf("terminated by signal %d\n", termSignal);
+    }
+    else
+    {
+        printf("Hull Breach");
+    }
+
+
 }
 
 void CheckProcesses(struct ChildPIDs *structIn)
 {
     int i;
     int childExitMethod;
+    pid_t childPID_actual;
     
     for(i = 0; i < structIn->nChild; i++)
     {
         childExitMethod = -5;
-        if(waitpid(structIn->cPID[i], &childExitMethod, WNOHANG))
+        childPID_actual = waitpid(structIn->cPID[i], &childExitMethod, WNOHANG);
+        if(childPID_actual == -1)
+        {
+            printf("\nHull Breach, Panic. Child did not exit correctly\n");
+            exit(1);
+        }
+        else if(childPID_actual != 0)
         {
             ProcessExitMethod(structIn->cPID[i], childExitMethod);
         }

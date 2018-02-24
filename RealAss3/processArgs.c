@@ -6,19 +6,7 @@
 //  Copyright © 2018 Kevin Lewis. All rights reserved.
 //
 
-/*
- 
- Get input from user on a loop, including parsing $$, as part of the prompt
- exit command (don't worry about cleaning up background children yet)
- cd command
- fork() + exec() handling
- Input/output redirection
- SIGINT handling
- Background commands
- Finish exit command to clean up background children
- status command
- SIGTSP handling
- */
+
 
 #include "processArgs.h"
 
@@ -33,20 +21,23 @@ void AdditionalProcess(struct Arguments *argsIn)
         if(strcmp(argsIn->args[i], "<") == 0 ||
            strcmp(argsIn->args[i], ">") == 0 )
         {
-            argsIn->useArgs = i;
+            if (argsIn->useArgs == -1)
+            {
+                argsIn->useArgs = i;
+            }
         }
-        if(strcmp(argsIn->args[i], "<") == 0 && i < argsIn->nArgs)
+        if(strcmp(argsIn->args[i], "<") == 0 && i < argsIn->nArgs - 1)
         {
-            argsIn->inRedirect = argsIn->args[i];
+            argsIn->inRedirect = argsIn->args[i + 1];
         }
-        else if(strcmp(argsIn->args[i], ">") == 0 && i < argsIn->nArgs)
+        else if(strcmp(argsIn->args[i], ">") == 0 && i < argsIn->nArgs - 1)
         {
-            argsIn->outRedirect = argsIn->args[i];
+            argsIn->outRedirect = argsIn->args[i + 1];
         }
     }
     
     // Determine if it should be run in the background
-    if (strcmp(argsIn->args[argsIn->nArgs], "&") == 0)
+    if (strcmp(argsIn->args[argsIn->nArgs - 1], "&") == 0)
     {
         argsIn->inBackground = 1;
     }

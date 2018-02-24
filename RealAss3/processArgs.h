@@ -26,11 +26,25 @@
 #define STR_SIZE 10000
 #define BUFFER 2048
 #define ARGSIZE 512
-#define MAX_CPID 100
+#define MAX_CPID 50
+
+/*
+ 
+ Get input from user on a loop, including parsing $$, as part of the prompt
+ exit command (don't worry about cleaning up background children yet)
+ cd command
+ fork() + exec() handling
+ Input/output redirection
+ SIGINT handling
+ Background commands
+ Finish exit command to clean up background children
+ status command
+ SIGTSP handling
+ */
 
 // In future iterations, I would probably replace this with a dynamic array
 // But for the purposes of this assignment, I will just use a large array. Hopefully
-// I won't get larger than 100 children. If I get to that amount, I will exit.
+// I won't get larger than 50 children. If I get to that amount, I will exit.
 // This should also help prevent my program from going wild.
 struct ChildPIDs
 {
