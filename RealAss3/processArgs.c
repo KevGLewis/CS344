@@ -72,6 +72,12 @@ void AdditionalProcess(struct Arguments *argsIn)
         argsIn->args[argsIn->nArgs - 1] = NULL;
         argsIn->nArgs--;
     }
+    
+    // check if the background has been turned off
+    if(!BackgroundOn)
+    {
+        argsIn->inBackground = 0;
+    }
 
 }
 
@@ -89,6 +95,11 @@ int ProcessLine(struct Arguments *argsIn, struct ChildPIDs* structIn)
     else if(strcmp(argsIn->args[0], "cd") == 0)
     {
         ProcessCD(argsIn);
+    }
+    
+    else if(strcmp(argsIn->args[0], "status") == 0)
+    {
+        ProcessStatus(structIn);
     }
     
     else
@@ -110,6 +121,7 @@ int ProcessExit(struct Arguments *argsIn, struct ChildPIDs* structIn)
     }
     else
     {
+        KillChildren(structIn);
         return 0;
     }
 }
@@ -137,6 +149,21 @@ void ProcessCD(struct Arguments *argsIn)
     }
 }
 
+// Process the status command
+void ProcessStatus(struct ChildPIDs* structIn)
+{
+    // verify that we have already processed a function
+    if(structIn->latestFG == -5)
+    {
+        printf("No process to be checked");
+    }
+    
+    else
+    {
+        ProcessExitMethod(structIn->latestFG, structIn->exitMethod, 0); // 0 means in the foreground
+    }
+}
+
 // This will process all of the other commands, including the execvp commands
 pid_t ProcessOther(struct Arguments *argsIn, struct ChildPIDs* structIn)
 {
@@ -144,14 +171,6 @@ pid_t ProcessOther(struct Arguments *argsIn, struct ChildPIDs* structIn)
     int childExitMethod = -5;
     
     spawnPid = fork();
-    // add the new child ID to our array
-    if(argsIn->inBackground)
-    {
-        AddChildPID(structIn, spawnPid);
-    }
-    
-    // Now change the child signal handlers
-    SetUpChildSigHandle(argsIn->inBackground);
 
     // This switch statement handles our forking
     switch (spawnPid)
@@ -161,19 +180,92 @@ pid_t ProcessOther(struct Arguments *argsIn, struct ChildPIDs* structIn)
             exit(1);
             break;
         case 0:
-            execvp(argsIn->args[0], argsIn->args);
+            SetUpChildSigHandle(argsIn->inBackground);
+            IORedirection(argsIn);
+            if(execvp(argsIn->args[0], argsIn->args) == -1)
+            {
+                printf("Could not execute command");
+                exit(1);
+            }
             break;
         default:
             break;
     }
+
+    // add the new child ID to our array
+    if(argsIn->inBackground)
+    {
+        AddChildPID(structIn, spawnPid);
+    }
+    
     // if it is in the background, then we won't need to wait until
     // before we next get input from the user
-    if(!argsIn->inBackground)
+    else
     {
+        // We need to save the foreground process information
+        // in case we call status.
+        structIn->latestFG = spawnPid;
         waitpid(spawnPid, &childExitMethod, 0);
+        structIn->exitMethod = childExitMethod;
+        
     }
 
     return spawnPid;
+}
+
+// Takes care of redirecting the input and output
+void IORedirection(struct Arguments *argsIn)
+{
+    int devNull = open("/dev/null", O_WRONLY);
+    int result, sourceFD, targetFD;
+    // Take care of input redirection
+    // redirect input to dev/null if nothing provided
+    if(argsIn->inRedirect == NULL)
+    {
+        if (devNull == -1) { perror("dev/null error"); exit(1); }
+        result = dup2(devNull, 0);
+        if (result == -1) { perror("source dup2()"); exit(2); }
+    }
+    
+    // redirect input to the user specified file
+    else
+    {
+        sourceFD = open(argsIn->inRedirect, O_RDONLY);
+        if (sourceFD == -1) { perror("source open()"); exit(1); }
+        
+        result = dup2(sourceFD, 0);
+        if (result == -1) { perror("source dup2()"); exit(2); }
+    }
+    
+    // Take care of output redirection
+    // redirect input to dev/null if nothing provided
+    if(argsIn->outRedirect == NULL)
+    {
+        if (devNull == -1) { perror("dev/null error"); exit(1); }
+        result = dup2(devNull, 1);
+        if (result == -1) { perror("target dup2()"); exit(2); }
+    }
+    
+    // redirect output to the user specified file
+    else
+    {
+        targetFD = open(argsIn->outRedirect, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+        if (targetFD == -1) { perror("target open()"); exit(1); }
+        
+        result = dup2(targetFD, 1);
+        if (result == -1) { perror("target dup2()"); exit(2); }
+    }
+}
+
+// Used to kill all of the child processes within our
+// ChildPID struct
+void KillChildren(struct ChildPIDs *structIn)
+{
+    int i;
+    for(i = 0; i < structIn->nChild; i++)
+    {
+        kill(structIn->cPID[i], SIGTERM);
+    }
 }
 
 // initializes the ChildPID struct
@@ -181,6 +273,8 @@ void InitializeStruct(struct ChildPIDs *structIn)
 {
     structIn->nChild = 0;
     structIn->inBackground = 0;
+    structIn->latestFG = -5;
+    structIn->exitMethod = 0;
 }
 
 // Add the child PID to our child PID struct
@@ -212,10 +306,17 @@ int IsInBackground(struct Arguments *argsIn)
 }
 
 // Processes the exit method of a particular child
-void ProcessExitMethod(pid_t pidIn, int childExitMethod)
+void ProcessExitMethod(pid_t pidIn, int childExitMethod, int isInBackground)
 {
     // Fill this in with code to process the exit code.
-    printf("\nbackground pid %d is done: ", pidIn);
+    if(isInBackground)
+    {
+        printf("\nbackground pid %d is done: ", pidIn);
+    }
+    else
+    {
+        printf("\n");
+    }
     
     if (WIFEXITED(childExitMethod) != 0)
     {
@@ -254,7 +355,7 @@ void CheckProcesses(struct ChildPIDs *structIn)
         }
         else if(childPID_actual != 0)
         {
-            ProcessExitMethod(structIn->cPID[i], childExitMethod);
+            ProcessExitMethod(structIn->cPID[i], childExitMethod, 1); // 1 signifies it is in the background
         }
     }
 }

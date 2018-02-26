@@ -43,6 +43,12 @@
  SIGTSP handling
  */
 
+// Not quite sure how to handle the background process, so I'm going to use global
+// variables and switch them as needed
+
+int BackgroundOn;
+int SwitchBackground;
+
 // In future iterations, I would probably replace this with a dynamic array
 // But for the purposes of this assignment, I will just use a large array. Hopefully
 // I won't get larger than 50 children. If I get to that amount, I will exit.
@@ -52,6 +58,10 @@ struct ChildPIDs
     int nChild;
     pid_t cPID[MAX_CPID];
     int inBackground;
+    
+    // This will keep track of the most recently exited program
+    pid_t latestFG;
+    int exitMethod;
 };
 
 struct Arguments
@@ -68,17 +78,21 @@ void AdditionalProcess(struct Arguments *argsIn);
 int ProcessLine(struct Arguments *argsIn, struct ChildPIDs* structIn);
 int ProcessExit(struct Arguments *argsIn, struct ChildPIDs* structIn);
 void ProcessCD(struct Arguments *argsIn);
-void ProcessStatus(struct Arguments *argsIn);
+void ProcessStatus(struct ChildPIDs* structIn);
 pid_t ProcessOther(struct Arguments *argsIn, struct ChildPIDs* structIn);
 void InitializeStruct(struct ChildPIDs* structIn);
 void AddChildPID(struct ChildPIDs *structIn, pid_t cPIDIn);
 int IsInBackground(struct Arguments *argsIn);
+void IORedirection(struct Arguments *argsIn);
 
 // Child Checking
 void CheckProcesses(struct ChildPIDs *structIn);
-void ProcessExitMethod(pid_t pidIn, int childExitMethod);
+void ProcessExitMethod(pid_t pidIn, int childExitMethod, int isInBackground);
 void SetUpChildSigHandle(int isInBackground);
 void catchSIGINT_Child(int signo);
+
+// Kills the children (Oh MY!!)
+void KillChildren(struct ChildPIDs *structIn);
 
 
 #endif /* processArgs_h */

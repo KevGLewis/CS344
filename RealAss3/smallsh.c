@@ -98,8 +98,33 @@ void CleanStruct(struct Arguments *argsIn)
     argsIn->inBackground = 0;
 }
 
+// Let's figure out if we need to turn off the background functionality
+// if so then we will toggle it between off and on
+void HandleBackgroundSwitch()
+{
+    if(SwitchBackground == 1)
+    {
+        if(BackgroundOn == 1)
+        {
+            BackgroundOn = 0;
+            printf("Entering foreground-only mode (& is now ignored)");
+        }
+        else
+        {
+            BackgroundOn = 1;
+            printf("Exiting foreground-only mode");
+        }
+        SwitchBackground = 0;
+    }
+}
+
 void runProgram()
 {
+    // first, set the background on and switch variables to their correct
+    // values
+    BackgroundOn = 1;
+    SwitchBackground = 0;
+    
     struct Arguments ArgsOut;
     InitializeArgStruct(&ArgsOut);
     struct ChildPIDs cPIDs; // set up our struct to hold our Child PIDs
@@ -112,6 +137,7 @@ void runProgram()
     while(noExit)
     {
         CheckProcesses(&cPIDs);
+        HandleBackgroundSwitch();
         lineEntered = GetUserInput(); // Get input from the user
         
         ParseLine(&ArgsOut, lineEntered); // parse the input into the argument array
@@ -137,7 +163,7 @@ int main(int argc, char* argv[])
     
     ignore_action.sa_handler = SIG_IGN;
     //sigaction(SIGINT, &SIGINT_action, NULL);
-    sigaction(SIGINT, &ignore_action, NULL); // Ignore for the time being
+    sigaction(SIGINT, &ignore_action, NULL); // Ignore we don't want the shell to end
     sigaction(SIGTSTP, &SIGTSTP_action, NULL); // Ignore for the time being
     sigaction(SIGHUP, &ignore_action, NULL);
     sigaction(SIGQUIT, &ignore_action, NULL);
@@ -147,5 +173,5 @@ int main(int argc, char* argv[])
 
 void catchSIGTSTP_Parent(int signo)
 {
-    // fill in later
+    SwitchBackground = 1;
 }
