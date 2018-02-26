@@ -11,15 +11,14 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <string.h>
-#include <time.h>
-#include <stdbool.h>
-#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <assert.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <string.h>
+#include <stdbool.h>
+#include <unistd.h>
+#include <signal.h>
 
 // Let's set up the global room name list
 #define NUMNAMES 10
@@ -43,11 +42,6 @@
  SIGTSP handling
  */
 
-// Not quite sure how to handle the background process, so I'm going to use global
-// variables and switch them as needed
-
-int BackgroundOn;
-int SwitchBackground;
 
 // In future iterations, I would probably replace this with a dynamic array
 // But for the purposes of this assignment, I will just use a large array. Hopefully
@@ -93,6 +87,11 @@ void catchSIGINT_Child(int signo);
 
 // Kills the children (Oh MY!!)
 void KillChildren(struct ChildPIDs *structIn);
+
+// Background Functions
+void HandleBackgroundSwitch(void);
+void ToggleBackground(void);
+void InitializeBackground(void);
 
 
 #endif /* processArgs_h */

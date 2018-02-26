@@ -8,17 +8,155 @@
 
 #include "processArgs.h"
 
+// Not quite sure how to handle the background process, so I'm going to use global
+// variables and switch them as needed
+
+int BackgroundOnToggle;
+int SwitchBackgroundToggle;
+
+// Let's figure out if we need to turn off the background functionality
+// if so then we will toggle it between off and on
+void HandleBackgroundSwitch()
+{
+    if(SwitchBackgroundToggle == 1)
+    {
+        if(BackgroundOnToggle == 1)
+        {
+            BackgroundOnToggle = 0;
+            printf("Entering foreground-only mode (& is now ignored)");
+        }
+        else
+        {
+            BackgroundOnToggle = 1;
+            printf("Exiting foreground-only mode");
+        }
+        SwitchBackgroundToggle = 0;
+    }
+}
+
+void ToggleBackground()
+{
+    SwitchBackgroundToggle = 1;
+}
+
+void InitializeBackground()
+{
+    // first, set the background on and switch variables to their correct
+    // values
+    BackgroundOnToggle = 1;
+    SwitchBackgroundToggle = 0;
+}
+
+void AdditionalProcess(struct Arguments *argsIn)
+{
+    // first, run through the array and figure out if there is any redirection
+    int i;
+    
+    // Parse out the redirection
+    for(i = 0; i < argsIn->nArgs; i++)
+    {
+        if(strcmp(argsIn->args[i], "<") == 0 ||
+           strcmp(argsIn->args[i], ">") == 0 )
+        {
+            if (argsIn->useArgs == -1)
+            {
+                argsIn->useArgs = i;
+            }
+        }
+        if(strcmp(argsIn->args[i], "<") == 0 && i < argsIn->nArgs - 1)
+        {
+            argsIn->inRedirect = argsIn->args[i + 1];
+        }
+        else if(strcmp(argsIn->args[i], ">") == 0 && i < argsIn->nArgs - 1)
+        {
+            argsIn->outRedirect = argsIn->args[i + 1];
+        }
+    }
+    
+    // Determine if it should be run in the background
+    if (strcmp(argsIn->args[argsIn->nArgs - 1], "&") == 0)
+    {
+        argsIn->inBackground = 1;
+    }
+    
+    // if there was no
+    
+    // Delete the rest of the arguments only if I/O redirection occurred
+    if(argsIn->useArgs != -1)
+    {
+        for (i = argsIn->useArgs; i < argsIn->nArgs; i++)
+        {
+            if(strcmp(argsIn->args[i], "<") == 0 ||
+               strcmp(argsIn->args[i], ">") == 0 ||
+               strcmp(argsIn->args[i], "&") == 0)
+            {
+                free(argsIn->args[i]);
+            }
+            
+            argsIn->args[i] = NULL;
+        }
+        
+        // the use args variable store the index of the last used argument
+        // so we'll need to increment it by one to get the total number of elements
+        argsIn->nArgs = argsIn->useArgs + 1;
+    }
+    
+    // Also just need to check the situation where the process is run in the background
+    // with no input redirection
+    else if(strcmp(argsIn->args[argsIn->nArgs - 1], "&") == 0)
+    {
+        free(argsIn->args[argsIn->nArgs - 1]);
+        argsIn->args[argsIn->nArgs - 1] = NULL;
+        argsIn->nArgs--;
+    }
+    
+    // check if the background has been turned off
+    if(BackgroundOnToggle == 0)
+    {
+        argsIn->inBackground = 0;
+    }
+    
+}
+
+int ProcessLine(struct Arguments *argsIn, struct ChildPIDs* structIn)
+{
+    // first Process the arguments further, parsing out the indirection and
+    // background command
+    AdditionalProcess(argsIn);
+    
+    if(strcmp(argsIn->args[0], "exit") == 0)
+    {
+        return ProcessExit(argsIn, structIn);
+    }
+    
+    else if(strcmp(argsIn->args[0], "cd") == 0)
+    {
+        ProcessCD(argsIn);
+    }
+    
+    else if(strcmp(argsIn->args[0], "status") == 0)
+    {
+        ProcessStatus(structIn);
+    }
+    
+    else
+    {
+        ProcessOther(argsIn, structIn);
+        
+    }
+    
+    return 1;
+}
+
 char* GetUserInput()
 {
     int numCharsEntered = -5; // How many chars we entered
     char* lineEntered = NULL;
     size_t bufferSize = 0; // Holds how large the allocated buffer is
-    int nArgs;
     
     // Get input from the user
     while(1)
     {
-        nArgs = 0; // set the number of arguments to zero
         printf(": ");
         fflush(stdout); // flush the output
         // Get a line from the user
@@ -98,32 +236,9 @@ void CleanStruct(struct Arguments *argsIn)
     argsIn->inBackground = 0;
 }
 
-// Let's figure out if we need to turn off the background functionality
-// if so then we will toggle it between off and on
-void HandleBackgroundSwitch()
-{
-    if(SwitchBackground == 1)
-    {
-        if(BackgroundOn == 1)
-        {
-            BackgroundOn = 0;
-            printf("Entering foreground-only mode (& is now ignored)");
-        }
-        else
-        {
-            BackgroundOn = 1;
-            printf("Exiting foreground-only mode");
-        }
-        SwitchBackground = 0;
-    }
-}
-
 void runProgram()
 {
-    // first, set the background on and switch variables to their correct
-    // values
-    BackgroundOn = 1;
-    SwitchBackground = 0;
+    InitializeBackground();
     
     struct Arguments ArgsOut;
     InitializeArgStruct(&ArgsOut);
@@ -173,5 +288,5 @@ int main(int argc, char* argv[])
 
 void catchSIGTSTP_Parent(int signo)
 {
-    SwitchBackground = 1;
+    ToggleBackground();
 }

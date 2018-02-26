@@ -10,107 +10,6 @@
 
 #include "processArgs.h"
 
-void AdditionalProcess(struct Arguments *argsIn)
-{
-    // first, run through the array and figure out if there is any redirection
-    int i;
-    
-    // Parse out the redirection
-    for(i = 0; i < argsIn->nArgs; i++)
-    {
-        if(strcmp(argsIn->args[i], "<") == 0 ||
-           strcmp(argsIn->args[i], ">") == 0 )
-        {
-            if (argsIn->useArgs == -1)
-            {
-                argsIn->useArgs = i;
-            }
-        }
-        if(strcmp(argsIn->args[i], "<") == 0 && i < argsIn->nArgs - 1)
-        {
-            argsIn->inRedirect = argsIn->args[i + 1];
-        }
-        else if(strcmp(argsIn->args[i], ">") == 0 && i < argsIn->nArgs - 1)
-        {
-            argsIn->outRedirect = argsIn->args[i + 1];
-        }
-    }
-    
-    // Determine if it should be run in the background
-    if (strcmp(argsIn->args[argsIn->nArgs - 1], "&") == 0)
-    {
-        argsIn->inBackground = 1;
-    }
-    
-    // if there was no
-    
-    // Delete the rest of the arguments only if I/O redirection occurred
-    if(argsIn->useArgs != -1)
-    {
-        for (i = argsIn->useArgs; i < argsIn->nArgs; i++)
-        {
-            if(strcmp(argsIn->args[i], "<") == 0 ||
-               strcmp(argsIn->args[i], ">") == 0 ||
-               strcmp(argsIn->args[i], "&") == 0)
-            {
-                free(argsIn->args[i]);
-            }
-            
-            argsIn->args[i] = NULL;
-        }
-        
-        // the use args variable store the index of the last used argument
-        // so we'll need to increment it by one to get the total number of elements
-        argsIn->nArgs = argsIn->useArgs + 1;
-    }
-    
-    // Also just need to check the situation where the process is run in the background
-    // with no input redirection
-    else if(strcmp(argsIn->args[argsIn->nArgs - 1], "&") == 0)
-    {
-        free(argsIn->args[argsIn->nArgs - 1]);
-        argsIn->args[argsIn->nArgs - 1] = NULL;
-        argsIn->nArgs--;
-    }
-    
-    // check if the background has been turned off
-    if(!BackgroundOn)
-    {
-        argsIn->inBackground = 0;
-    }
-
-}
-
-int ProcessLine(struct Arguments *argsIn, struct ChildPIDs* structIn)
-{
-    // first Process the arguments further, parsing out the indirection and
-    // background command
-    AdditionalProcess(argsIn);
-    
-    if(strcmp(argsIn->args[0], "exit") == 0)
-    {
-        return ProcessExit(argsIn, structIn);
-    }
-    
-    else if(strcmp(argsIn->args[0], "cd") == 0)
-    {
-        ProcessCD(argsIn);
-    }
-    
-    else if(strcmp(argsIn->args[0], "status") == 0)
-    {
-        ProcessStatus(structIn);
-    }
-    
-    else
-    {
-        ProcessOther(argsIn, structIn);
-    
-    }
-    
-    return 1;
-}
-
 // Process the exit command
 int ProcessExit(struct Arguments *argsIn, struct ChildPIDs* structIn)
 {
@@ -169,6 +68,7 @@ pid_t ProcessOther(struct Arguments *argsIn, struct ChildPIDs* structIn)
 {
     pid_t spawnPid = -5;
     int childExitMethod = -5;
+    int result;
     
     spawnPid = fork();
 
@@ -180,9 +80,12 @@ pid_t ProcessOther(struct Arguments *argsIn, struct ChildPIDs* structIn)
             exit(1);
             break;
         case 0:
+            printf("I'm Here");
             SetUpChildSigHandle(argsIn->inBackground);
             IORedirection(argsIn);
-            if(execvp(argsIn->args[0], argsIn->args) == -1)
+            result = execvp(argsIn->args[0], argsIn->args);
+            printf("Got Here");
+            if( result == -1)
             {
                 printf("Could not execute command");
                 exit(1);
@@ -387,4 +290,5 @@ void catchSIGINT_Child(int signo)
     char* message = "Caught SIGINT, sleeping for 5 seconds\n";
     write(STDOUT_FILENO, message, 38);
 }
+
 
