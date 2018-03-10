@@ -1,5 +1,6 @@
 #!/bin/bash
 #Matrix
-gcc -o otp_enc_d otp_enc_d.c -g -Wall -std=c99
-gcc -o otp_enc otp_enc.c -g -Wall -std=c99
+gcc -g -Wall -std=c99 otp_enc_d.c snd_recv_help.c -o otp_enc_d
+gcc -g -Wall -std=c99 otp_enc.c snd_recv_help.c -o otp_enc
+gcc -g -Wall -std=c99 keygen.c -o keygen
 

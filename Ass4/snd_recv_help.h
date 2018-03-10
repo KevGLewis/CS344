@@ -24,11 +24,30 @@
 #include <stdbool.h>
 #include <signal.h>
 
+struct InputFileNames
+{
+    char* keyFileName;
+    char* textToEncryptFileName;
+};
+
+struct ReturnMessage
+{
+    int messageSize;
+    char* message;
+};
+
 void error(const char *msg);
-void SendMessageSize(char* bufSize, char* buffRecv, int socketFD);
-void CheckPassword(char* buffer, char* buffRecv, int socketFD, char* password);
-void SendFileData(char* buffer, int socketFD);
-void ReceiveFileData(char* buffer, int establishedConnectionFD, int size);
-void ReceiveMessageSize(char* buffRecv, int socketFD);
+void VerifyInput(char* plaintextFile, char* keyFile);
+void LoadFile(char* buffer, char* fileName);
+void LoadPlaintext(char* buffer, char* filename);
+int PasswordSend(char* buffer, int socketFD, char* password);
+int PasswordReceive(char* buffer, int socketFD, char* password);
+int SendFileData(char* buffer, int socketFD);
+int ReceiveFileData(char* buffer, int establishedConnectionFD);
+void InitializeStructs(struct InputFileNames* ifn, struct ReturnMessage* rn);
+void ParseInput(char* input, struct InputFileNames* fileNames);
+void CleanupStructs(struct InputFileNames* ifn, struct ReturnMessage* rn);
+void CryptInput(char* returnBuffer, struct InputFileNames* fileNames, int EncryptTogg);
+
 
 #endif /* snd_recv_help_h */
