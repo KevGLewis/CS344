@@ -1,3 +1,7 @@
+#include <netdb.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <signal.h>
 #include "snd_recv_help.h"
 
 int listenSocketFD;
@@ -58,7 +62,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in serverAddress, clientAddress;
     struct InputFileNames clientInput;
     
-    char* password = "&&&&&"; // Let's us acknowledge we are talking with a friendly client
+    char* password = "#####"; // Let's us acknowledge we are talking with a friendly client
 
 
 	if (argc < 2) { fprintf(stderr,"USAGE: %s port\n", argv[0]); exit(1); } // Check usage & args
@@ -124,7 +128,7 @@ int main(int argc, char *argv[])
                 //continue
             }
             ParseInput(buffer, &clientInput);
-            CryptInput(buffer, &clientInput, 1);
+            CryptInput(buffer, &clientInput, 0); // 0 Toggle indicates it will decrypt
             SendFileData(buffer, establishedConnectionFD);
         }
         

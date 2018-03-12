@@ -12,11 +12,11 @@ void error(const char *msg) { perror(msg); exit(1); } // Error function used for
 void VerifyInput(char* plaintextFile, char* keyFile)
 {
     int i, test1, test2;
-    char plaintextBuffer[1056];
-    char keyBuffer[1056];
+    char* plaintextBuffer = NULL;
+    char* keyBuffer = NULL;
     
-    LoadFile(plaintextBuffer, plaintextFile);
-    LoadFile(keyBuffer, keyFile);
+    LoadFile(&plaintextBuffer, plaintextFile);
+    LoadFile(&keyBuffer, keyFile);
     
     // Verify that our keyBuffer is longer than our plaintextBuffer
     if(strlen(keyBuffer) < strlen(plaintextBuffer))
@@ -37,18 +37,23 @@ void VerifyInput(char* plaintextFile, char* keyFile)
         if(!test1 && !test2)
         {
             fprintf(stderr, "Error: file \'%s\' has bad characters\n", plaintextFile);
+            free(plaintextBuffer);
+            free(keyBuffer);
             exit(2);
         }
     }
     
+    free(plaintextBuffer);
+    free(keyBuffer);
+    
 }
 
 // Load a file into the buffer
-void LoadFile(char* buffer, char* fileName)
+void LoadFile(char** buffer, char* fileName)
 {
     char* terminalLocation;
-    char newBuffer[1056];
-    
+    int arraySize = 1056;
+    *buffer = calloc(arraySize, sizeof(char));
     FILE *fp = fopen(fileName, "r");
     if(fp == NULL)
     {
@@ -62,16 +67,32 @@ void LoadFile(char* buffer, char* fileName)
     // Read the file line by line and remote the new line escape
     while(getline(&lineEntered, &bufferSize, fp) != -1) //read in the line.
     {
-        sprintf(newBuffer, "%s", lineEntered);
-        if(strstr(newBuffer, "\n") != NULL)
+        if(strstr(lineEntered, "\n") != NULL)
         {
-            terminalLocation = strstr(newBuffer, "\n"); // Where is the terminal
+            terminalLocation = strstr(lineEntered, "\n"); // Where is the terminal
             *terminalLocation = '\0'; // End the string early to wipe out the terminal
         }
-        strcat(buffer, newBuffer);
+        
+        while(arraySize < strlen(lineEntered))
+        {
+            ExpandDynArray(buffer, &arraySize);
+        }
+        
+        strcat(*buffer, lineEntered);
     }
     fclose(fp);
     free(lineEntered);
+}
+
+void ExpandDynArray(char** buffer, int *arraySize)
+{
+    char* newBuffer = calloc(*arraySize, sizeof(char));
+    memcpy(newBuffer, *buffer, *arraySize);
+    free(*buffer);
+    
+    *arraySize = *arraySize * 2;
+    *buffer = calloc(*arraySize, sizeof(char));
+    memcpy(*buffer, newBuffer, *arraySize / 2);
 }
 
 
@@ -98,7 +119,6 @@ int PasswordReceive(char* buffer, int socketFD, char* password)
 {
     // Wait to receive the handshake password from a client
     ReceiveFileData(buffer, socketFD);
-    printf("The received password is %s\n", buffer);
     if(strcmp(buffer, password) != 0)
     {
         perror("Handshake Failed - Server\n");
@@ -134,7 +154,7 @@ int SendFileData(char* buffer, int socketFD)
 // When we receive the file, we want to ensure that all messages end with @@
 int ReceiveFileData(char* buffer, int establishedConnectionFD)
 {
-    char buffSpurt[256];
+    char buffSpurt[1056];
     int charsRead = 0;
     memset(buffer, '\0', sizeof(*buffer));
     
@@ -153,13 +173,10 @@ int ReceiveFileData(char* buffer, int establishedConnectionFD)
 }
 
 // Initialize the input and return message structs
-void InitializeStructs(struct InputFileNames* ifn, struct ReturnMessage* rn)
+void InitializeStructs(struct InputFileNames* ifn)
 {
-    ifn->keyFileName = NULL;
-    ifn->textToEncryptFileName = NULL;
-    
-    rn->message = NULL;
-    rn->messageSize = 0;
+    memset(ifn->keyFileName, '\0', sizeof(ifn->keyFileName));
+    memset(ifn->textToEncryptFileName, '\0', sizeof(ifn->textToEncryptFileName));
 }
 
 // The input will be in the form of keyFileName " " parseTextFileName
@@ -169,25 +186,19 @@ void ParseInput(char* input, struct InputFileNames* fileNames)
     
     // The first input is the filename
     token = strtok(input, " ");
-    fileNames->textToEncryptFileName = calloc(strlen(token) + 1, sizeof(char));
     strcpy(fileNames->textToEncryptFileName, token);
     
     // The second input is the text to encrpt file name
     token = strtok(NULL, " ");
-    fileNames->keyFileName = calloc(strlen(token) + 1, sizeof(char));
     strcpy(fileNames->keyFileName, token);
 
 }
 
-// Set up the signal handler for the parent
-
 // Free the dynamically allocated portions of the structs
-void CleanupStructs(struct InputFileNames* ifn, struct ReturnMessage* rn)
+void CleanupStructs(struct InputFileNames* ifn)
 {
-    free(ifn->keyFileName);
-    free(ifn->textToEncryptFileName);
-    
-    free(rn->message);
+    memset(ifn->keyFileName, '\0', sizeof(ifn->keyFileName));
+    memset(ifn->textToEncryptFileName, '\0', sizeof(ifn->textToEncryptFileName));
 }
 
 // Either encrypt or decrypt input. When encrpyt togg is 1, it will encrypt, if it is
@@ -198,14 +209,12 @@ void CryptInput(char* returnBuffer, struct InputFileNames* fileNames, int encryp
     // Clear our return and set up the buffer for the other files
     memset(returnBuffer, '\0', sizeof(*returnBuffer));
     
-    char ptBuffer[1056];
-    memset(ptBuffer, '\0', sizeof(*ptBuffer));
+    char* ptBuffer = NULL;
     
-    char keyBuffer[1056];
-    memset(keyBuffer, '\0', sizeof(*keyBuffer));
+    char* keyBuffer = NULL;
     
-    LoadFile(ptBuffer, fileNames->textToEncryptFileName);
-    LoadFile(keyBuffer, fileNames->keyFileName);
+    LoadFile(&ptBuffer, fileNames->textToEncryptFileName);
+    LoadFile(&keyBuffer, fileNames->keyFileName);
     
     for(i = 0; i < strlen(ptBuffer); i++)
     {
@@ -235,7 +244,7 @@ void CryptInput(char* returnBuffer, struct InputFileNames* fileNames, int encryp
         }
         else
         {
-            sum = (x - y + 26) % 27 + 65;
+            sum = (x - y + 27) % 27 + 65;
         }
         
         // Include the case where we have spaces
@@ -248,5 +257,11 @@ void CryptInput(char* returnBuffer, struct InputFileNames* fileNames, int encryp
             returnBuffer[i] = (char) sum;
         }
     }
+    
+    // Add the new line
+    strcat(returnBuffer, "\n");
+    
+    free(ptBuffer);
+    free(keyBuffer);
 }
 

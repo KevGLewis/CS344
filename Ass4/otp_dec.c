@@ -2,19 +2,17 @@
 
 int main(int argc, char *argv[])
 {
-    
 	int socketFD, portNumber;
 	struct sockaddr_in serverAddress;
 	struct hostent* serverHostInfo;
 	char buffer[1056];
     
-    char* password = "&&&&&"; // Allows us to know we are working with a friendly server
-    
-    // Before we do anything, verify the input
-    VerifyInput(argv[1], argv[2]);
+    char* password = "#####"; // Allows us to know we are working with a friendly server
     
 	if (argc < 4) { fprintf(stderr,"USAGE: %s plaintext key port\n", argv[0]); exit(0); } // Check usage & args
 
+    // Before we do anything, verify the input
+    VerifyInput(argv[1], argv[2]);
     
 	// Set up the server address struct
 	memset((char*)&serverAddress, '\0', sizeof(serverAddress)); // Clear out the address struct
@@ -24,7 +22,7 @@ int main(int argc, char *argv[])
 	serverHostInfo = gethostbyname("localhost"); // Convert the machine name into a special form of address
 	if (serverHostInfo == NULL) { fprintf(stderr, "CLIENT: ERROR, no such host\n"); exit(0); }
 	memcpy((char*)&serverAddress.sin_addr.s_addr, (char*)serverHostInfo->h_addr, serverHostInfo->h_length); // Copy in the address
-    
+
 	// Set up the socket
 	socketFD = socket(AF_INET, SOCK_STREAM, 0); // Create the socket
 	if (socketFD < 0)
