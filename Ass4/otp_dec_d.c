@@ -125,16 +125,16 @@ int main(int argc, char *argv[])
             if(ReceiveFileData(buffer, establishedConnectionFD))
             {
                 perror("Error Receiving Data");
-                //continue
+                continue;
             }
             ParseInput(buffer, &clientInput);
+            memset(buffer, '\0', sizeof(buffer)); // Clear the return buffer
             CryptInput(buffer, &clientInput, 0); // 0 Toggle indicates it will decrypt
             SendFileData(buffer, establishedConnectionFD);
         }
         
         else
         {
-            perror("Handshake Failure - Server\n");
             continue; // Go back to the beginning of the while loop
         }
         

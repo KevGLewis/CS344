@@ -122,6 +122,9 @@ int PasswordReceive(char* buffer, int socketFD, char* password)
     if(strcmp(buffer, password) != 0)
     {
         perror("Handshake Failed - Server\n");
+        memset(buffer, '\0', sizeof(&buffer)); // Clear the array
+        sprintf(buffer, "%s", "INCORRECT PASSWORD"); // Load the buffer with our password
+        SendFileData(buffer, socketFD);
         return 0;
     }
     
@@ -206,8 +209,6 @@ void CleanupStructs(struct InputFileNames* ifn)
 void CryptInput(char* returnBuffer, struct InputFileNames* fileNames, int encryptTogg)
 {
     int i, x, y, sum;
-    // Clear our return and set up the buffer for the other files
-    memset(returnBuffer, '\0', sizeof(*returnBuffer));
     
     char* ptBuffer = NULL;
     
@@ -247,8 +248,13 @@ void CryptInput(char* returnBuffer, struct InputFileNames* fileNames, int encryp
             sum = (x - y + 27) % 27 + 65;
         }
         
+        if(ptBuffer[i] == '\n')
+        {
+            returnBuffer[i] = '\n';
+        }
+        
         // Include the case where we have spaces
-        if(sum == 91)
+        else if(sum == 91)
         {
             returnBuffer[i] = ' ';
         }
