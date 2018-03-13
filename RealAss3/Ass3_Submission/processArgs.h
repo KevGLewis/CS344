@@ -9,6 +9,8 @@
 #ifndef processArgs_h
 #define processArgs_h
 
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
