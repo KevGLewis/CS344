@@ -5,7 +5,7 @@ int main(int argc, char *argv[])
 	int socketFD, portNumber;
 	struct sockaddr_in serverAddress;
 	struct hostent* serverHostInfo;
-	char buffer[1056];
+    char* buffer = NULL;
     
     char* password = "#####"; // Allows us to know we are working with a friendly server
     
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 		error("CLIENT: ERROR connecting");
     
     // Handshake with the server
-    if(!PasswordSend(buffer, socketFD, password))
+    if(!PasswordSend(socketFD, password))
     {
         // Close it if it was not successfull
         close(socketFD);
@@ -44,13 +44,18 @@ int main(int argc, char *argv[])
     }
     
     // load the buffer with our arguments and send the data to the server
-    memset(buffer, '\0', sizeof(buffer)); // Clear out the buffer again for reuse
+    buffer = calloc(1056, sizeof(char));
     sprintf(buffer, "%s %s", argv[1], argv[2]); // Load the buffer with our arguments
-    SendFileData(buffer, socketFD);
-    ReceiveFileData(buffer, socketFD);
+    SendFileData(&buffer, socketFD);
+    free(buffer);
+    
+    buffer = NULL;
+    ReceiveFileData(&buffer, socketFD);
 
     printf("%s", buffer);
     
+    // Cleanup
+    free(buffer);
 	close(socketFD); // Close the socket
     
     exit(0);

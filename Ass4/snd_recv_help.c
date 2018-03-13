@@ -52,6 +52,7 @@ void VerifyInput(char* plaintextFile, char* keyFile)
 void LoadFile(char** buffer, char* fileName)
 {
     char* terminalLocation;
+    int totalSize = 0;
     int arraySize = 1056;
     *buffer = calloc(arraySize, sizeof(char));
     FILE *fp = fopen(fileName, "r");
@@ -72,8 +73,8 @@ void LoadFile(char** buffer, char* fileName)
             terminalLocation = strstr(lineEntered, "\n"); // Where is the terminal
             *terminalLocation = '\0'; // End the string early to wipe out the terminal
         }
-        
-        while(arraySize < strlen(lineEntered))
+        totalSize += strlen(lineEntered);
+        while(arraySize < totalSize)
         {
             ExpandDynArray(buffer, &arraySize);
         }
@@ -97,56 +98,65 @@ void ExpandDynArray(char** buffer, int *arraySize)
 
 
 // Return 1 if it was successful, and 0 if it was not
-int PasswordSend(char* buffer, int socketFD, char* password)
+int PasswordSend(int socketFD, char* password)
 {
     // Clear the arrays
-    memset(buffer, '\0', sizeof(&buffer)); // Clear the array
+    char* buffer = calloc(strlen(password), sizeof(char));
     sprintf(buffer, "%s", password); // Load the buffer with our password
-    SendFileData(buffer, socketFD);
-    ReceiveFileData(buffer, socketFD);
+    SendFileData(&buffer, socketFD);
+    free(buffer);
+    
+    buffer = NULL;
+    ReceiveFileData(&buffer, socketFD);
     
     if(strcmp(buffer, "OK") != 0)
     {
         perror("Handshake Failed - Client\n");
         return 0;
     }
-    
+    free(buffer);
     return 1;
 }
 
 // Returns 1 if the reception was successful, and 0 if it was not
-int PasswordReceive(char* buffer, int socketFD, char* password)
+int PasswordReceive(int socketFD, char* password)
 {
+    char* buffer = NULL;
     // Wait to receive the handshake password from a client
-    ReceiveFileData(buffer, socketFD);
+    ReceiveFileData(&buffer, socketFD);
     if(strcmp(buffer, password) != 0)
     {
         perror("Handshake Failed - Server\n");
-        memset(buffer, '\0', sizeof(&buffer)); // Clear the array
+        free(buffer);
+        
+        buffer = calloc(50, sizeof(char));
         sprintf(buffer, "%s", "INCORRECT PASSWORD"); // Load the buffer with our password
-        SendFileData(buffer, socketFD);
+        SendFileData(&buffer, socketFD);
+        free(buffer);
         return 0;
     }
     
-    memset(buffer, '\0', sizeof(&buffer)); // Clear the array
+    // if not we need to send back our buffer
+    free(buffer);
+    buffer = calloc(50, sizeof(char));
     sprintf(buffer, "%s", "OK"); // Load the buffer with our password
-    SendFileData(buffer, socketFD);
+    SendFileData(&buffer, socketFD);
     
     return 1;
 }
 
 // All messages will not end in @@, so we shall add it
-int SendFileData(char* buffer, int socketFD)
+int SendFileData(char** buffer, int socketFD)
 {
     // Add our ending text
-    strcat(buffer, "@@");
+    strcat(*buffer, "@@");
     
     // Loop the sending action until we are sure we
     int charsWritten = 0;
     int totalSent = 0;
-    while(totalSent < strlen(buffer))
+    while(totalSent < strlen(*buffer))
     {
-        charsWritten = (int) send(socketFD, &buffer[totalSent], strlen(&buffer[totalSent]), 0); // Write to the server
+        charsWritten = (int) send(socketFD, &(*buffer)[totalSent], strlen(&(*buffer)[totalSent]), 0); // Write to the server
         if (charsWritten < 0) error("CLIENT: ERROR writing to socket");
         totalSent += charsWritten;
     }
@@ -155,22 +165,32 @@ int SendFileData(char* buffer, int socketFD)
 }
 
 // When we receive the file, we want to ensure that all messages end with @@
-int ReceiveFileData(char* buffer, int establishedConnectionFD)
+int ReceiveFileData(char** buffer, int establishedConnectionFD)
 {
     char buffSpurt[1056];
-    int charsRead = 0;
-    memset(buffer, '\0', sizeof(*buffer));
+    int totalSize = 0;
+    int arraySize = 1056;
+    *buffer = calloc(arraySize, sizeof(char));
     
-    while(strstr(buffer, "@@") == NULL)
+    int charsRead = 0;
+    
+    while(strstr(*buffer, "@@") == NULL)
     {
+        // Get the message from the client / server
         memset(buffSpurt, '\0', sizeof(buffSpurt));
-        charsRead = (int) recv(establishedConnectionFD, buffSpurt, 255, 0);
+        charsRead = (int) recv(establishedConnectionFD, buffSpurt, 1055, 0);
         if (charsRead < 0) error("ERROR reading from socket");
-        strcat(buffer, buffSpurt);
+        totalSize += charsRead;
+        // Expand the buffer as needed
+        while(arraySize < totalSize)
+        {
+            ExpandDynArray(buffer, &arraySize);
+        }
+        strcat(*buffer, buffSpurt);
     }
     
-    int terminalLocation = (int) (strstr(buffer, "@@") - buffer); // Where is the terminal
-    buffer[terminalLocation] = '\0'; // End the string early to wipe out the terminal
+    int terminalLocation = (int) (strstr(*buffer, "@@") - *buffer); // Where is the terminal
+    (*buffer)[terminalLocation] = '\0'; // End the string early to wipe out the terminal
     
     return 0;
 }
@@ -206,7 +226,7 @@ void CleanupStructs(struct InputFileNames* ifn)
 
 // Either encrypt or decrypt input. When encrpyt togg is 1, it will encrypt, if it is
 // zero, it will decrypt
-void CryptInput(char* returnBuffer, struct InputFileNames* fileNames, int encryptTogg)
+void CryptInput(char** returnBuffer, struct InputFileNames* fileNames, int encryptTogg)
 {
     int i, x, y, sum;
     
@@ -216,6 +236,9 @@ void CryptInput(char* returnBuffer, struct InputFileNames* fileNames, int encryp
     
     LoadFile(&ptBuffer, fileNames->textToEncryptFileName);
     LoadFile(&keyBuffer, fileNames->keyFileName);
+    
+    int arraySize = (int) strlen(ptBuffer);
+    *returnBuffer = calloc(arraySize, sizeof(char));
     
     for(i = 0; i < strlen(ptBuffer); i++)
     {
@@ -248,24 +271,19 @@ void CryptInput(char* returnBuffer, struct InputFileNames* fileNames, int encryp
             sum = (x - y + 27) % 27 + 65;
         }
         
-        if(ptBuffer[i] == '\n')
-        {
-            returnBuffer[i] = '\n';
-        }
-        
         // Include the case where we have spaces
-        else if(sum == 91)
+        if(sum == 91)
         {
-            returnBuffer[i] = ' ';
+            (*returnBuffer)[i] = ' ';
         }
         else
         {
-            returnBuffer[i] = (char) sum;
+            (*returnBuffer)[i] = (char) sum;
         }
     }
     
     // Add the new line
-    strcat(returnBuffer, "\n");
+    strcat(*returnBuffer, "\n");
     
     free(ptBuffer);
     free(keyBuffer);

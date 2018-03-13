@@ -53,8 +53,7 @@ int main(int argc, char *argv[])
     int p;
     pid_t pid = 0;
 	socklen_t sizeOfClientInfo;
-	char buffer[1056];
-    char buffSpurt[256];
+    char* buffer = NULL;
 	struct sockaddr_in serverAddress, clientAddress;
     struct InputFileNames clientInput;
     
@@ -109,24 +108,22 @@ int main(int argc, char *argv[])
         sizeOfClientInfo = sizeof(clientAddress); // Get the size of the address for the client that will connect
         establishedConnectionFD = accept(listenSocketFD, (struct sockaddr *)&clientAddress, &sizeOfClientInfo); // Accept
         if (establishedConnectionFD < 0) error("ERROR on accept");
-
-        // Get the message from the client and display it
-        memset(buffer, '\0', sizeof(buffer));
-        memset(buffSpurt, '\0', 256);
     
         // Handshake with the client
-        if(PasswordReceive(buffer, establishedConnectionFD, password))
+        if(PasswordReceive(establishedConnectionFD, password))
         {
             // Receive the data from the Client
-            if(ReceiveFileData(buffer, establishedConnectionFD))
+            if(ReceiveFileData(&buffer, establishedConnectionFD))
             {
                 perror("Error Receiving Data");
                 continue;
             }
             ParseInput(buffer, &clientInput);
-            memset(buffer, '\0', sizeof(buffer)); // Clear the return buffer
-            CryptInput(buffer, &clientInput, 1);
-            SendFileData(buffer, establishedConnectionFD);
+            free(buffer);
+            buffer = NULL;
+            CryptInput(&buffer, &clientInput, 1);  // 1 Toggle indicates it will encrypt
+            SendFileData(&buffer, establishedConnectionFD);
+            free(buffer);
         }
         
         else
